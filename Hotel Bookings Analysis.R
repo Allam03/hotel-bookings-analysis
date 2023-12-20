@@ -25,7 +25,7 @@ colSums(is.na(hotel_bookings)) # Number of null values per column
 # Filtering out unwanted rows
 clean_df <- hotel_bookings %>%
   filter(!(adults == 0 & children == 0 & babies == 0)) %>%
-  select(-index, -company, -agent) %>%
+  select(-index,-company,-agent) %>%
   drop_na()
 
 # Adjusting categorical values
@@ -112,33 +112,27 @@ cluster_df$lead_time <- ifelse(
 scaled_data <- scale(cluster_df)
 
 # Finding optimal number of clusters using Elbow Method
-set.seed(123)
-
-wss <- numeric(6)
-for (i in 1:6) {
+wss <- numeric(10)
+for (i in 1:10) {
   kmeans_data <- kmeans(scaled_data, centers = i)
   wss[i] <- sum(kmeans_data$withinss)
 }
 
-plot(1:6,
+plot(1:10,
      wss,
      type = "b",
      xlab = "Number of Clusters",
      ylab = "Within Sum of Squares")
 
 # Performing K-means clustering with the chosen number of clusters
-num_clusters <- 5  # Adjust this based on the Elbow Method plot
+num_clusters <- 5
+set.seed(123)
 kmeans_data <- kmeans(scaled_data, centers = num_clusters)
 
 cluster_df$cluster <- as.factor(kmeans_data$cluster)
-
 clean_df$cluster <- as.factor(kmeans_data$cluster)
 
 # EDA on clusters
-cluster_median <- cluster_df %>%
-  group_by(cluster) %>%
-  summarise_all(median, na.rm = TRUE)
-
 cluster_mean <- cluster_df %>%
   group_by(cluster) %>%
   summarise_all(mean, na.rm = TRUE)
@@ -154,11 +148,11 @@ cluster_mean <- cluster_df %>%
 clean_df <- clean_df %>%
   mutate(
     cluster = case_when(
-      cluster == 1 ~ "Early Bookers",
+      cluster == 1 ~ "With Babies",
       cluster == 2 ~ "Two Adults",
-      cluster == 3 ~ "With Babies",
-      cluster == 4 ~ "With Children",
-      cluster == 5 ~ "Single Adult",
+      cluster == 3 ~ "Early Bookers",
+      cluster == 4 ~ "Single Adult",
+      cluster == 5 ~ "With Children",
       TRUE ~ as.character(cluster)
     )
   )
@@ -209,8 +203,8 @@ tree_df <- clean_df[tree_columns]
 # Splitting the data into training and testing sets
 train_index <-
   sample(1:nrow(tree_df), 0.7 * nrow(tree_df))
-train_data <- tree_df[train_index,]
-test_data <- tree_df[-train_index,]
+train_data <- tree_df[train_index, ]
+test_data <- tree_df[-train_index, ]
 
 # Fitting the decision tree model
 tree_formula <- as.formula("train_data$is_canceled ~ .")
@@ -304,7 +298,7 @@ server <- function(input, output) {
         fill = "Cancellation Status"
       ) +
       scale_x_continuous(limits = c(-0.5, 3)) +
-      facet_wrap( ~ cluster, scale = "free"),
+      facet_wrap(~ cluster, scale = "free"),
     
     res = 120
   )
